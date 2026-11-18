@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlaceMate — AI Placement Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="gate-open">
+
+<div id="introScreen" class="gate">
+ <div class="gate-wrap">
+  <header class="gate-nav"><div class="gate-logo">Place<span>Mate</span></div><button onclick="showLogin()">Sign in →</button></header>
+  <div class="intro-layout">
+   <section class="intro-copy">
+    <span class="eyebrow">✦ YOUR AI PLACEMENT COMPANION</span>
+    <h1>Turn your skills into your <span>next opportunity.</span></h1>
+    <p>PlaceMate helps students prepare for placements with resume guidance, relevant job matches, mock interview practice, and a clear skill-building roadmap — all in one place.</p>
+    <div class="gate-actions"><button class="big-btn" onclick="showLogin()">Get started free&nbsp; →</button></div>
+    </section>
+  </div><div class="gate-footer">PlaceMate • Prepare with purpose. Apply with confidence.</div>
+ </div>
+</div>
+<div id="loginScreen" class="gate" style="display:none">
+ <div class="gate-wrap">
+  <header class="gate-nav"><div class="gate-logo">Place<span>Mate</span></div><button onclick="showIntro()">← Back to home</button></header>
+  <div class="login-shell"><button class="back-link" onclick="showIntro()">← Introduction</button><form class="login-card" onsubmit="loginDemo(event)">
+   <span class="eyebrow">WELCOME BACK</span><h1>Sign in to PlaceMate</h1><p>Continue your placement journey and get ready for your next opportunity.</p>
+   <label class="field" for="email">Email address</label><input class="login-input" id="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+   <label class="field" for="password">Password</label><input class="login-input" id="password" type="password" placeholder="Enter your password" autocomplete="current-password" minlength="8" required>
+   <div id="loginError" class="login-error" role="alert">Please enter a valid email and password.</div>
+   <button class="big-btn login-submit" type="submit">Sign in →</button>
+   <div class="login-note">New here? Enter your email and a password (8+ characters) and your account is created automatically. Returning? Use the same email and password.</div>
+  </form><div class="gate-footer">Your placement journey starts with one step.</div></div>
+ </div>
+</div>
+
+<div id="dashboardApp" class="app" style="display:none">
+<aside class="sidebar">
+<div class="logo">Place<span>Mate</span></div>
+<div class="nav">
+<button class="active" onclick="showPage('dashboard',this)">🏠 Dashboard</button>
+<button onclick="showPage('resume',this)">📄 Resume AI</button>
+<button onclick="showPage('jobs',this)">💼 Job Match</button>
+<button onclick="showPage('interview',this)">🎙️ Mock Interview</button>
+<button onclick="showPage('roadmap',this)">🗺️ Skill Roadmap</button>
+<button onclick="showPage('admin',this)">📊 Placement Admin</button>
+</div>
+</aside>
+<main class="main">
+<div class="top"><h1 id="title">Dashboard</h1><div style="display:flex;align-items:center;gap:10px"><div class="user">👨‍🎓 Student • BCA</div><button class="btn secondary" onclick="logoutDemo()">Log out</button></div></div>
+
+<section id="dashboard" class="page active">
+<div class="hero"><h2>Your AI placement journey starts here.</h2><p>PlaceMate coordinates resume analysis, job matching, interview practice and skill improvement.</p></div>
+<div class="grid">
+<div class="card"><div class="muted">ATS Resume Score</div><div class="stat">85/100</div><div class="progress"><div class="bar" style="width:85%"></div></div><button class="btn secondary" onclick="showPage('resume')">Improve Resume</button></div>
+<div class="card"><div class="muted">Interview Readiness</div><div class="stat">70%</div><div class="progress"><div class="bar" style="width:70%"></div></div><button class="btn secondary" onclick="showPage('interview')">Practice Now</button></div>
+<div class="card"><div class="muted">Job Matches</div><div class="stat">20</div><p class="muted">5 new matches this week</p><button class="btn secondary" onclick="showPage('jobs')">View Jobs</button></div>
+</div>
+<h2 class="section-title">AI Agent Activity</h2>
+<div class="card list">
+<div>🤖 <b>Resume Analyzer</b> — found 3 improvement areas</div>
+<div>🎯 <b>Job Matcher</b> — ranked Junior Python Developer at 92%</div>
+<div>🧠 <b>Feedback Agent</b> — identified SQL joins as a skill gap</div>
+</div>
+</section>
+
+<section id="resume" class="page">
+<div class="card">
+<h2>Resume AI Analyzer</h2><p class="muted">Upload your PDF resume to simulate ATS analysis.</p>
+<div class="upload"><label for="resumeFile">📎 Choose Resume PDF</label><input id="resumeFile" type="file" accept=".pdf" onchange="analyzeResume(this)"><p id="fileName" class="muted">No file selected</p></div>
+<div id="resumeResult" style="display:none;margin-top:22px">
+<div class="grid"><div class="card"><div class="muted">ATS Score</div><div class="stat">85/100</div></div><div class="card"><div class="muted">Skills Found</div><div class="stat">12</div></div><div class="card"><div class="muted">Suggestions</div><div class="stat">5</div></div></div>
+<h3>AI Suggestions</h3><ul><li>Add measurable results to projects.</li><li>Highlight SQL and Python skills.</li><li>Use keywords from target job descriptions.</li><li>Keep project descriptions concise.</li><li>Add relevant certifications.</li></ul>
+<button class="btn" onclick="toast('Tailored resume generated!')">✨ Tailor Resume for Job</button>
+</div></div>
+</section>
+
+<section id="jobs" class="page">
+<h2>Recommended Jobs</h2><p class="muted">Ranked using your skills, location and profile.</p>
+<div class="list">
+<div class="card job"><div><h3>Junior Python Developer</h3><div class="muted">TechNova • Kochi / Hybrid</div><span class="tag">Python</span><span class="tag">SQL</span><span class="tag">Django</span></div><div><div class="match">92%</div><button class="btn" onclick="toast('Job saved to your shortlist')">Apply Prep</button></div></div>
+<div class="card job"><div><h3>Graduate Software Engineer</h3><div class="muted">CodeCraft • Bengaluru</div><span class="tag">Java</span><span class="tag">DSA</span><span class="tag">Git</span></div><div><div class="match">86%</div><button class="btn" onclick="toast('Job saved to your shortlist')">Apply Prep</button></div></div>
+<div class="card job"><div><h3>Frontend Developer Intern</h3><div class="muted">WebWorks • Remote</div><span class="tag">React</span><span class="tag">JavaScript</span><span class="tag">CSS</span></div><div><div class="match">81%</div><button class="btn" onclick="toast('Job saved to your shortlist')">Apply Prep</button></div></div>
+</div>
+</section>
+
+<section id="interview" class="page">
+<div class="card">
+<h2>🎙️ AI Mock Interview</h2><p class="muted">Role: Junior Python Developer • Technical + HR</p>
+<div class="progress"><div id="interviewBar" class="bar" style="width:20%"></div></div>
+<h3 id="qNum">Question 1 of 5</h3><p id="question" class="question">Tell me about yourself and why you want to become a Python developer.</p>
+<textarea id="answer" class="answer" placeholder="Type your answer here (voice input can be connected later)..."></textarea>
+<br><br><button class="btn" onclick="nextQuestion()">Submit Answer →</button>
+<div id="feedback" style="margin-top:18px"></div>
+</div>
+</section>
+
+<section id="roadmap" class="page">
+<h2>🗺️ Your 4-Week Skill Roadmap</h2><div class="list">
+<div class="card road"><div class="week">W1</div><div><h3>SQL & Databases</h3><p class="muted">Joins, subqueries, normalization and practical queries.</p><button class="btn secondary" onclick="toast('Week 1 marked complete')">Mark Complete</button></div></div>
+<div class="card road"><div class="week">W2</div><div><h3>Python & DSA</h3><p class="muted">Functions, OOP, arrays, strings and common interview problems.</p><button class="btn secondary" onclick="toast('Week 2 opened')">Start Week</button></div></div>
+<div class="card road"><div class="week">W3</div><div><h3>Projects & Git</h3><p class="muted">Improve your GitHub portfolio and explain projects clearly.</p><button class="btn secondary" onclick="toast('Week 3 opened')">Start Week</button></div></div>
+<div class="card road"><div class="week">W4</div><div><h3>Interview Practice</h3><p class="muted">HR questions, technical questions and mock interview sessions.</p><button class="btn secondary" onclick="toast('Week 4 opened')">Start Week</button></div></div>
+</div></section>
+
+<section id="admin" class="page">
+<h2>Placement Officer Dashboard</h2><div class="grid">
+<div class="card"><div class="muted">Students</div><div class="stat">120</div></div><div class="card"><div class="muted">Interview Ready</div><div class="stat">70%</div></div><div class="card"><div class="muted">Active Drives</div><div class="stat">8</div></div>
+</div><h2 class="section-title">Batch Readiness</h2><div class="card"><p>Ready for interviews</p><div class="progress"><div class="bar" style="width:70%"></div></div><p>Need improvement</p><div class="progress"><div class="bar" style="width:30%"></div></div><button class="btn" onclick="toast('Readiness report exported')">Export Report</button></div>
+</section>
+</main></div><div id="toast" class="toast"></div>
+<script src="script.js"></script>
+<script src="api.js"></script>
+</body></html>
