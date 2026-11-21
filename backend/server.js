@@ -422,8 +422,8 @@ app.get('/api/admin/stats', auth, adminOnly, wrap(async (req, res) => {
 
 /* ---------- static frontend ---------- */
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
-app.use(express.static(path.join(__dirname, 'public')));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html')));
 
 /* ---------- error handler ---------- */
 app.use((err, req, res, next) => {
