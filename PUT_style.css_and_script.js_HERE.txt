@@ -1,1 +1,0 @@
-Copy your style.css and script.js into this folder (next to index.html and api.js).
