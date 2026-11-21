@@ -260,6 +260,18 @@ app.get('/api/dashboard', auth, wrap(async (req, res) => {
   });
 }));
 
+/* ---------- resume check (rejects PDFs that are not resumes) ---------- */
+function looksLikeResume(text) {
+  const t = String(text || '').toLowerCase();
+  const words = t.split(/\s+/).filter(Boolean).length;
+  const hasEmail = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/.test(t);
+  const hasPhone = /\+?\d[\d\s-]{8,}\d/.test(t);
+  const sections = ['education', 'experience', 'skills', 'projects',
+    'internship', 'certification', 'objective', 'summary', 'achievements'];
+  const found = sections.filter(s => t.includes(s)).length;
+  return words >= 80 && words <= 2500 && found >= 2 && (hasEmail || hasPhone);
+}
+
 /* ---------- resume ---------- */
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -287,7 +299,12 @@ app.post('/api/resume', auth, uploadLimiter, upload.single('resume'), wrap(async
     });
   }
 
-  // ---- FIX: this part was missing, so the request never got a response ----
+  if (!looksLikeResume(text)) {
+    return res.status(422).json({
+      error: 'This file does not look like a resume. Please upload your resume PDF.',
+    });
+  }
+
   const result = analyzeResume(text);
 
   await q(
