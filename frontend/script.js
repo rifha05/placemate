@@ -25,12 +25,14 @@ function showLogin() {
 // SHOW REGISTRATION FORM
 function showRegister() {
   document.getElementById('signInForm').style.display = 'none';
+  document.getElementById('verifyForm').style.display = 'none';
   document.getElementById('registerForm').style.display = 'block';
 }
 
 // SHOW SIGN IN FORM
-function showSignIn() {
+ function showSignIn() {
   document.getElementById('registerForm').style.display = 'none';
+  document.getElementById('verifyForm').style.display = 'none';
   document.getElementById('signInForm').style.display = 'block';
 }
 
@@ -69,7 +71,11 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.style.display = 'none'; }, 3000);
 }
-
+function toggleSidebar() {
+  const app = document.getElementById('dashboardApp');
+  if (window.innerWidth <= 850) app.classList.toggle('open');
+  else app.classList.toggle('collapsed');
+}
 // Make everything reachable from inline onclick handlers and api.js
 window.showIntro = showIntro;
 window.showLogin = showLogin;
@@ -77,3 +83,4 @@ window.showRegister = showRegister;
 window.showSignIn = showSignIn;
 window.showPage = showPage;
 window.toast = toast;
+window.toggleSidebar = toggleSidebar;

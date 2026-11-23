@@ -78,7 +78,8 @@
       }
       var err = new Error((data && data.error) || 'Request failed (' + res.status + ')');
       err.status = res.status;
-      throw err;
+      err.data = data;
+            throw err;
     }
     return data;
   }
@@ -114,6 +115,17 @@
   }
 
   /* ---------------- auth ---------------- */
+  var pendingEmail = '';
+
+  function showVerifyForm(email) {
+    pendingEmail = email;
+    $('signInForm').style.display = 'none';
+    $('registerForm').style.display = 'none';
+    $('verifyForm').style.display = 'block';
+    $('verifyMsg').textContent = 'We emailed a 6-digit code to ' + email + '. If you don\'t see it in your inbox, check your Spam folder. It expires in 10 minutes.';
+    $('otpCode').value = '';
+    $('otpCode').focus();
+  }
 
   window.loginDemo = async function (e) {
     if (e && e.preventDefault) e.preventDefault();
@@ -132,7 +144,12 @@
       $('loginPassword').value = '';
       openDashboardUI(data.user);
     } catch (err) {
-      say(err.message);
+      if (err.data && err.data.needsVerification) {
+        showVerifyForm(err.data.email);
+        say('Please verify your email. Tap "Resend code" if you need a new one.');
+      } else {
+        say(err.message);
+      }
     } finally {
       setBusy(btn, false);
     }
@@ -160,10 +177,29 @@
           password: $('regPassword').value
         }
       });
-      setToken(data.token);
       $('regPassword').value = '';
       $('confirmPassword').value = '';
-      say('Account created. Welcome to PlaceMate!');
+      say('Code sent! Check your email, and your spam folder too.');
+      showVerifyForm(data.email);
+    } catch (err) {
+      say(err.message);
+    } finally {
+      setBusy(btn, false);
+    }
+    return false;
+  };
+
+  window.verifyEmail = async function (e) {
+    if (e && e.preventDefault) e.preventDefault();
+    var btn = document.querySelector('#verifyForm button[type="submit"]');
+    setBusy(btn, true, 'Verifying...');
+    try {
+      var data = await request('auth/verify', {
+        method: 'POST',
+        body: { email: pendingEmail, code: $('otpCode').value.trim() }
+      });
+      setToken(data.token);
+      say('Email verified. Welcome to PlaceMate!');
       openDashboardUI(data.user);
     } catch (err) {
       say(err.message);
@@ -173,11 +209,18 @@
     return false;
   };
 
+  window.resendCode = async function () {
+    try {
+      await request('auth/resend', { method: 'POST', body: { email: pendingEmail } });
+      say('A new code was sent.');
+    } catch (err) {
+      say(err.message);
+    }
+  };
   window.logoutDemo = function () {
     setToken(null);
     window.showIntro();
   };
-
   /* ---------------- dashboard ---------------- */
 
   async function loadDashboard() {
@@ -449,11 +492,71 @@
       var bars = document.querySelectorAll('#admin > .card .bar');
       if (bars[0]) bars[0].style.width = s.readyPct + '%';
       if (bars[1]) bars[1].style.width = s.needPct + '%';
+      loadAdminJobs();
     } catch (err) {
       say(err.message); // e.g. "Admin access only"
     }
   }
+/* ---------------- admin: manage drives ---------------- */
 
+  async function loadAdminJobs() {
+    var box = $('adminJobs');
+    if (!box) return;
+    try {
+      var data = await request('admin/jobs');
+      box.innerHTML = data.jobs.length ? data.jobs.map(function (j) {
+        return '<div class="job" style="padding:10px 0;border-bottom:1px solid #e8ebf2">' +
+          '<div><b>' + esc(j.title) + '</b>' +
+          '<p class="muted">' + esc(j.company) + ' • ' + esc(j.location) + ' • ' + esc(j.skills.join(', ')) + '</p></div>' +
+          '<button type="button" class="btn ' + (j.active ? 'secondary' : 'green') + '" data-job="' + esc(j.id) +
+          '" data-active="' + (j.active ? '1' : '0') + '">' + (j.active ? 'Close drive' : 'Reopen') + '</button>' +
+          '</div>';
+      }).join('') : '<p class="muted">No drives yet.</p>';
+    } catch (err) {
+      box.innerHTML = '<p class="muted">' + esc(err.message) + '</p>';
+    }
+  }
+
+  window.addJob = async function () {
+    var btn = $('addJobBtn');
+    setBusy(btn, true, 'Adding...');
+    try {
+      await request('admin/jobs', {
+        method: 'POST',
+        body: {
+          title: $('jobTitle').value.trim(),
+          company: $('jobCompany').value.trim(),
+          location: $('jobLocation').value.trim(),
+          skills: $('jobSkills').value
+        }
+      });
+      ['jobTitle', 'jobCompany', 'jobLocation', 'jobSkills'].forEach(function (id) { $(id).value = ''; });
+      say('Drive added.');
+      loadAdmin();
+    } catch (err) {
+      say(err.message);
+    } finally {
+      setBusy(btn, false);
+    }
+  };
+
+  function wireAdminJobs() {
+    var box = $('adminJobs');
+    if (!box) return;
+    box.addEventListener('click', async function (e) {
+      var btn = e.target.closest('[data-job]');
+      if (!btn) return;
+      try {
+        await request('admin/jobs/' + btn.getAttribute('data-job'), {
+          method: 'PUT',
+          body: { active: btn.getAttribute('data-active') !== '1' }
+        });
+        loadAdmin();
+      } catch (err) {
+        say(err.message);
+      }
+    });
+  }
   /* ---------------- load data when a page opens ---------------- */
 
   var loaders = {
@@ -476,6 +579,7 @@
   function init() {
     wireJobs();
     wireRoadmap();
+    wireAdminJobs();
 
     if (getToken()) {
       request('me')

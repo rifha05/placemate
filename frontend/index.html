@@ -1,884 +1,367 @@
-<!DOCTYPE html><html lang="en"><head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PlaceMate — AI Placement Assistant</title>
-    <link rel="stylesheet" href="style.css">
-</head><body class="gate-open"><!-- ================= INTRO PAGE ================= --><div id="introScreen" class="gate"><div class="gate-wrap">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlaceMate — AI Placement Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="gate-open">
 
+<!-- ================= INTRO PAGE ================= -->
+<div id="introScreen" class="gate">
+  <div class="gate-wrap">
     <header class="gate-nav">
-        <div class="gate-logo">
-            Place<span>Mate</span>
-        </div>
-
-        <button type="button" onclick="showLogin()">
-            Sign in →
-        </button>
+      <div class="gate-logo">Place<span>Mate</span></div>
+      <button type="button" onclick="showLogin()">Sign in →</button>
     </header>
 
     <div class="intro-layout">
-
-        <section class="intro-copy">
-
-            <span class="eyebrow">
-                ✦ YOUR AI PLACEMENT COMPANION
-            </span>
-
-            <h1>
-                Turn your skills into your
-                <span>next opportunity.</span>
-            </h1>
-
-            <p>
-                PlaceMate helps students prepare for placements
-                with resume guidance, relevant job matches,
-                mock interview practice, and a clear skill-building
-                roadmap — all in one place.
-            </p>
-
-            <div class="gate-actions">
-
-                <button
-                    type="button"
-                    class="big-btn"
-                    onclick="showLogin()">
-                    Get started free →
-                </button>
-
-            </div>
-
-        </section>
-
+      <section class="intro-copy">
+        <span class="eyebrow">✦ YOUR AI PLACEMENT COMPANION</span>
+        <h1>Turn your skills into your <span>next opportunity.</span></h1>
+        <p>
+          PlaceMate helps students prepare for placements with resume guidance,
+          relevant job matches, mock interview practice, and a clear skill-building
+          roadmap — all in one place.
+        </p>
+        <div class="gate-actions">
+          <button type="button" class="big-btn" onclick="showLogin()">Get started free →</button>
+        </div>
+      </section>
     </div>
 
-    <div class="gate-footer">
-        PlaceMate • Prepare with purpose. Apply with confidence.
-    </div>
-
+    <div class="gate-footer">PlaceMate • Prepare with purpose. Apply with confidence.</div>
+  </div>
 </div>
 
-</div><!-- ================= LOGIN PAGE ================= --><div id="loginScreen" class="gate" style="display:none"><div class="gate-wrap">
-
+<!-- ================= LOGIN PAGE ================= -->
+<div id="loginScreen" class="gate" style="display:none">
+  <div class="gate-wrap">
     <header class="gate-nav">
-
-        <div class="gate-logo">
-            Place<span>Mate</span>
-        </div>
-
-        <button type="button" onclick="showIntro()">
-            ← Back to home
-        </button>
-
+      <div class="gate-logo">Place<span>Mate</span></div>
+      <button type="button" onclick="showIntro()">← Back to home</button>
     </header>
-
 
     <div class="login-shell">
 
-        <!-- ================= SIGN IN ================= -->
+      <!-- SIGN IN -->
+      <form id="signInForm" class="login-card" onsubmit="loginDemo(event); return false;">
+        <span class="eyebrow">WELCOME BACK</span>
+        <h1>Sign In</h1>
+        <p>Continue your placement journey.</p>
 
-        <form
-            id="signInForm"
-            class="login-card"
-            onsubmit="loginDemo(event); return false;">
+        <label class="field" for="loginEmail">Email Address</label>
+        <input class="login-input" id="loginEmail" type="email" placeholder="Enter your email" autocomplete="email" required>
 
-            <span class="eyebrow">
-                WELCOME BACK
-            </span>
+        <label class="field" for="loginPassword">Password</label>
+        <input class="login-input" id="loginPassword" type="password" placeholder="Enter your password" autocomplete="current-password" required>
 
-            <h1>Sign In</h1>
+        <button class="big-btn login-submit" type="submit">Sign In →</button>
 
-            <p>
-                Continue your placement journey.
-            </p>
+        <p>Don't have an account?
+          <a href="#" onclick="showRegister(); return false;">Register here</a>
+        </p>
+      </form>
 
+      <!-- REGISTER -->
+      <form id="registerForm" class="login-card" style="display:none" onsubmit="registerDemo(event); return false;">
+        <span class="eyebrow">JOIN PLACEMATE</span>
+        <h1>Create Account</h1>
+        <p>Start your placement preparation today.</p>
 
-            <label class="field" for="loginEmail">
-                Email Address
-            </label>
+        <label class="field" for="regName">Full Name</label>
+        <input class="login-input" id="regName" type="text" placeholder="Enter your full name" autocomplete="name" required>
 
-            <input
-                class="login-input"
-                id="loginEmail"
-                type="email"
-                placeholder="Enter your email"
-                autocomplete="email"
-                required
-            >
+        <label class="field" for="regEmail">Email Address</label>
+        <input class="login-input" id="regEmail" type="email" placeholder="Enter your email" autocomplete="email" required>
 
+        <label class="field" for="regPhone">Phone Number</label>
+        <input class="login-input" id="regPhone" type="tel" inputmode="numeric" maxlength="14"
+          pattern="(\+91 ?)?[6-9][0-9]{9}" title="Enter a 10-digit Indian mobile number"
+          placeholder="10-digit mobile number" autocomplete="tel" required>
 
-            <label class="field" for="loginPassword">
-                Password
-            </label>
+        <label class="field" for="regPassword">Password</label>
+        <input class="login-input" id="regPassword" type="password" placeholder="Create a password" minlength="8" autocomplete="new-password" required>
 
-            <input
-                class="login-input"
-                id="loginPassword"
-                type="password"
-                placeholder="Enter your password"
-                autocomplete="current-password"
-                required
-            >
+        <label class="field" for="confirmPassword">Confirm Password</label>
+        <input class="login-input" id="confirmPassword" type="password" placeholder="Confirm your password" minlength="8" autocomplete="new-password" required>
 
+        <button class="big-btn login-submit" type="submit">Create Account →</button>
 
-            <button
-                class="big-btn login-submit"
-                type="submit">
-                Sign In →
-            </button>
+        <p>Already have an account?
+          <a href="#" onclick="showSignIn(); return false;">Sign In here</a>
+        </p>
+      </form>
 
+      <!-- VERIFY EMAIL -->
+      <form id="verifyForm" class="login-card" style="display:none" onsubmit="verifyEmail(event); return false;">
+        <span class="eyebrow">ALMOST DONE</span>
+        <h1>Verify Email</h1>
+        <p id="verifyMsg">Enter the 6-digit code we emailed you.</p>
 
-            <p>
-                Don't have an account?
+        <label class="field" for="otpCode">6-digit code</label>
+        <input class="login-input" id="otpCode" type="text" inputmode="numeric" maxlength="6"
+          pattern="[0-9]{6}" autocomplete="one-time-code" placeholder="123456" required>
 
-                <a
-                    href="#"
-                    onclick="showRegister(); return false;">
-                    Register here
-                </a>
-            </p>
+        <button class="big-btn login-submit" type="submit">Verify →</button>
 
-        </form>
-
-
-        <!-- ================= REGISTER ================= -->
-
-        <form
-            id="registerForm"
-            class="login-card"
-            style="display:none"
-            onsubmit="registerDemo(event); return false;">
-
-            <span class="eyebrow">
-                JOIN PLACEMATE
-            </span>
-
-            <h1>Create Account</h1>
-
-            <p>
-                Start your placement preparation today.
-            </p>
-
-
-            <label class="field" for="regName">
-                Full Name
-            </label>
-
-            <input
-                class="login-input"
-                id="regName"
-                type="text"
-                placeholder="Enter your full name"
-                autocomplete="name"
-                required
-            >
-
-
-            <label class="field" for="regEmail">
-                Email Address
-            </label>
-
-            <input
-                class="login-input"
-                id="regEmail"
-                type="email"
-                placeholder="Enter your email"
-                autocomplete="email"
-                required
-            >
-
-
-            <label class="field" for="regPhone">
-                Phone Number
-            </label>
-
-            <input
-                class="login-input"
-                id="regPhone"
-                type="tel"
-                placeholder="Enter your phone number"
-                autocomplete="tel"
-                required
-            >
-
-
-            <label class="field" for="regPassword">
-                Password
-            </label>
-
-            <input
-                class="login-input"
-                id="regPassword"
-                type="password"
-                placeholder="Create a password"
-                minlength="8"
-                autocomplete="new-password"
-                required
-            >
-
-
-            <label class="field" for="confirmPassword">
-                Confirm Password
-            </label>
-
-            <input
-                class="login-input"
-                id="confirmPassword"
-                type="password"
-                placeholder="Confirm your password"
-                minlength="8"
-                autocomplete="new-password"
-                required
-            >
-
-
-            <button
-                class="big-btn login-submit"
-                type="submit">
-                Create Account →
-            </button>
-
-
-            <p>
-                Already have an account?
-
-                <a
-                    href="#"
-                    onclick="showSignIn(); return false;">
-                    Sign In here
-                </a>
-            </p>
-
-        </form>
-
+        <p>Didn't get it? <a href="#" onclick="resendCode(); return false;">Resend code</a></p>
+      </form>
     </div>
 
-
-    <div class="gate-footer">
-        Your placement journey starts with one step.
-    </div>
-
+    <div class="gate-footer">Your placement journey starts with one step.</div>
+  </div>
 </div>
 
-</div><!-- ================= DASHBOARD ================= --><div id="dashboardApp" class="app" style="display:none"><!-- SIDEBAR -->
+<!-- ================= DASHBOARD ================= -->
+<div id="dashboardApp" class="app" style="display:none">
 
-<aside class="sidebar">
-
-    <div class="logo">
-        Place<span>Mate</span>
-    </div>
-
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">Place<span>Mate</span></div>
 
     <div class="nav">
-
-        <button
-            type="button"
-            class="active"
-            onclick="showPage('dashboard', this)">
-            🏠 Dashboard
-        </button>
-
-        <button
-            type="button"
-            onclick="showPage('resume', this)">
-            📄 Resume AI
-        </button>
-
-        <button
-            type="button"
-            onclick="showPage('jobs', this)">
-            💼 Job Match
-        </button>
-
-        <button
-            type="button"
-            onclick="showPage('interview', this)">
-            🎙️ Mock Interview
-        </button>
-
-        <button
-            type="button"
-            onclick="showPage('roadmap', this)">
-            🗺️ Skill Roadmap
-        </button>
-
-        <button
-            type="button"
-            onclick="showPage('admin', this)">
-            📊 Placement Admin
-        </button>
-
+      <button type="button" class="active" onclick="showPage('dashboard', this)">🏠 Dashboard</button>
+      <button type="button" onclick="showPage('resume', this)">📄 Resume AI</button>
+      <button type="button" onclick="showPage('jobs', this)">💼 Job Match</button>
+      <button type="button" onclick="showPage('interview', this)">🎙️ Mock Interview</button>
+      <button type="button" onclick="showPage('roadmap', this)">🗺️ Skill Roadmap</button>
+      <button type="button" onclick="showPage('admin', this)">📊 Placement Admin</button>
     </div>
+  </aside>
 
-</aside>
+  <!-- DARK BACKDROP (mobile) -->
+  <div class="backdrop" onclick="toggleSidebar()"></div>
 
-
-<!-- MAIN -->
-
-<main class="main">
+  <!-- MAIN -->
+  <main class="main">
 
     <div class="top">
+      <div class="top-left">
+        <button type="button" class="menu-btn" onclick="toggleSidebar()" aria-label="Open or close menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <h1 id="title">Dashboard</h1>
+      </div>
 
-        <h1 id="title">
-            Dashboard
-        </h1>
-
-        <div style="display:flex;align-items:center;gap:10px">
-
-            <div class="user">
-                👨‍🎓 Student
-            </div>
-
-            <button
-                type="button"
-                class="btn secondary"
-                onclick="logoutDemo()">
-                Log out
-            </button>
-
-        </div>
-
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="user">👨‍🎓 Student</div>
+        <button type="button" class="btn secondary" onclick="logoutDemo()">Log out</button>
+      </div>
     </div>
 
-
     <!-- ================= DASHBOARD ================= -->
+    <section id="dashboard" class="page active">
 
-    <section
-        id="dashboard"
-        class="page active">
+      <div class="hero">
+        <h2>Your AI placement journey starts here.</h2>
+        <p>PlaceMate coordinates resume analysis, job matching, interview practice and skill improvement.</p>
+      </div>
 
-        <div class="hero">
-
-            <h2>
-                Your AI placement journey starts here.
-            </h2>
-
-            <p>
-                PlaceMate coordinates resume analysis,
-                job matching, interview practice and
-                skill improvement.
-            </p>
-
+      <div class="grid">
+        <div class="card">
+          <div class="muted">ATS Resume Score</div>
+          <div class="stat">0/100</div>
+          <div class="progress"><div class="bar" style="width:0%"></div></div>
+          <button type="button" class="btn secondary" onclick="showPage('resume')">Improve Resume</button>
         </div>
 
-
-        <div class="grid">
-
-            <div class="card">
-
-                <div class="muted">
-                    ATS Resume Score
-                </div>
-
-                <div class="stat">
-                    0/100
-                </div>
-
-                <div class="progress">
-                    <div
-                        class="bar"
-                        style="width:0%">
-                    </div>
-                </div>
-
-                <button
-                    type="button"
-                    class="btn secondary"
-                    onclick="showPage('resume')">
-                    Improve Resume
-                </button>
-
-            </div>
-
-
-            <div class="card">
-
-                <div class="muted">
-                    Interview Readiness
-                </div>
-
-                <div class="stat">
-                    0%
-                </div>
-
-                <div class="progress">
-                    <div
-                        class="bar"
-                        style="width:0%">
-                    </div>
-                </div>
-
-                <button
-                    type="button"
-                    class="btn secondary"
-                    onclick="showPage('interview')">
-                    Practice Now
-                </button>
-
-            </div>
-
-
-            <div class="card">
-
-                <div class="muted">
-                    Job Matches
-                </div>
-
-                <div class="stat">
-                    0
-                </div>
-
-                <p class="muted">
-                    0 strong matches
-                </p>
-
-                <button
-                    type="button"
-                    class="btn secondary"
-                    onclick="showPage('jobs')">
-                    View Jobs
-                </button>
-
-            </div>
-
+        <div class="card">
+          <div class="muted">Interview Readiness</div>
+          <div class="stat">0%</div>
+          <div class="progress"><div class="bar" style="width:0%"></div></div>
+          <button type="button" class="btn secondary" onclick="showPage('interview')">Practice Now</button>
         </div>
 
-
-        <h2 class="section-title">
-            AI Agent Activity
-        </h2>
-
-        <div class="card list">
-
-            <div>
-                Resume Analyzer — waiting for resume analysis
-            </div>
-
-            <div>
-                Job Matcher — loading job matches
-            </div>
-
-            <div>
-                Feedback Agent — waiting for interview activity
-            </div>
-
+        <div class="card">
+          <div class="muted">Job Matches</div>
+          <div class="stat">0</div>
+          <p class="muted">0 strong matches</p>
+          <button type="button" class="btn secondary" onclick="showPage('jobs')">View Jobs</button>
         </div>
+      </div>
 
+      <h2 class="section-title">AI Agent Activity</h2>
+
+      <div class="card list">
+        <div>Resume Analyzer — waiting for resume analysis</div>
+        <div>Job Matcher — loading job matches</div>
+        <div>Feedback Agent — waiting for interview activity</div>
+      </div>
     </section>
-
 
     <!-- ================= RESUME ================= -->
+    <section id="resume" class="page">
+      <div class="card">
+        <h2>Resume AI Analyzer</h2>
+        <p class="muted">Upload your PDF resume to simulate ATS analysis.</p>
 
-    <section
-        id="resume"
-        class="page">
-
-        <div class="card">
-
-            <h2>
-                Resume AI Analyzer
-            </h2>
-
-            <p class="muted">
-                Upload your PDF resume to simulate ATS analysis.
-            </p>
-
-
-            <div class="upload">
-
-                <label for="resumeFile">
-                    📎 Choose Resume PDF
-                </label>
-
-                <input
-                    id="resumeFile"
-                    type="file"
-                    accept=".pdf"
-                    onchange="analyzeResume(this)"
-                >
-
-                <p
-                    id="fileName"
-                    class="muted">
-                    No file selected
-                </p>
-
-            </div>
-
-
-            <div
-                id="resumeResult"
-                style="display:none;margin-top:22px">
-
-                <div class="grid">
-
-                    <div class="card">
-
-                        <div class="muted">
-                            ATS Score
-                        </div>
-
-                        <div class="stat">
-                            0/100
-                        </div>
-
-                    </div>
-
-
-                    <div class="card">
-
-                        <div class="muted">
-                            Skills Found
-                        </div>
-
-                        <div class="stat">
-                            0
-                        </div>
-
-                    </div>
-
-
-                    <div class="card">
-
-                        <div class="muted">
-                            Suggestions
-                        </div>
-
-                        <div class="stat">
-                            0
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <h3>
-                    AI Suggestions
-                </h3>
-
-                <ul></ul>
-
-            </div>
-
+        <div class="upload">
+          <label for="resumeFile">📎 Choose Resume PDF</label>
+          <input id="resumeFile" type="file" accept=".pdf" onchange="analyzeResume(this)">
+          <p id="fileName" class="muted">No file selected</p>
         </div>
 
-    </section>
+        <div id="resumeResult" style="display:none;margin-top:22px">
+          <div class="grid">
+            <div class="card">
+              <div class="muted">ATS Score</div>
+              <div class="stat">0/100</div>
+            </div>
+            <div class="card">
+              <div class="muted">Skills Found</div>
+              <div class="stat">0</div>
+            </div>
+            <div class="card">
+              <div class="muted">Suggestions</div>
+              <div class="stat">0</div>
+            </div>
+          </div>
 
+          <h3>AI Suggestions</h3>
+          <ul></ul>
+        </div>
+      </div>
+    </section>
 
     <!-- ================= JOBS ================= -->
+    <section id="jobs" class="page">
+      <h2>Recommended Jobs</h2>
+      <p class="muted">Ranked using your skills, location and profile.</p>
 
-    <section
-        id="jobs"
-        class="page">
-
-        <h2>
-            Recommended Jobs
-        </h2>
-
-        <p class="muted">
-            Ranked using your skills, location and profile.
-        </p>
-
-        <div class="list">
-
-            <div class="card">
-                Loading jobs...
-            </div>
-
-        </div>
-
+      <div class="list">
+        <div class="card">Loading jobs...</div>
+      </div>
     </section>
-
 
     <!-- ================= INTERVIEW ================= -->
+    <section id="interview" class="page">
+      <div class="card">
+        <h2>🎙️ AI Mock Interview</h2>
+        <p class="muted">Role: Junior Python Developer • Technical + HR</p>
 
-    <section
-        id="interview"
-        class="page">
+        <div class="progress"><div id="interviewBar" class="bar" style="width:20%"></div></div>
 
-        <div class="card">
+        <h3 id="qNum">Question 1 of 5</h3>
+        <p id="question" class="question">Loading question...</p>
 
-            <h2>
-                🎙️ AI Mock Interview
-            </h2>
+        <textarea id="answer" class="answer" placeholder="Type your answer here..."></textarea>
 
-            <p class="muted">
-                Role: Junior Python Developer • Technical + HR
-            </p>
+        <br><br>
 
+        <button type="button" class="btn" onclick="nextQuestion()">Submit Answer →</button>
 
-            <div class="progress">
-
-                <div
-                    id="interviewBar"
-                    class="bar"
-                    style="width:20%">
-                </div>
-
-            </div>
-
-
-            <h3 id="qNum">
-                Question 1 of 5
-            </h3>
-
-
-            <p
-                id="question"
-                class="question">
-                Loading question...
-            </p>
-
-
-            <textarea
-                id="answer"
-                class="answer"
-                placeholder="Type your answer here...">
-            </textarea>
-
-
-            <br><br>
-
-
-            <button
-                type="button"
-                class="btn"
-                onclick="nextQuestion()">
-                Submit Answer →
-            </button>
-
-
-            <div
-                id="feedback"
-                style="margin-top:18px">
-            </div>
-
-        </div>
-
+        <div id="feedback" style="margin-top:18px"></div>
+      </div>
     </section>
-
 
     <!-- ================= ROADMAP ================= -->
+    <section id="roadmap" class="page">
+      <h2>🗺️ Your 4-Week Skill Roadmap</h2>
 
-    <section
-        id="roadmap"
-        class="page">
+      <div class="list">
 
-        <h2>
-            🗺️ Your 4-Week Skill Roadmap
-        </h2>
-
-
-        <div class="list">
-
-            <div class="card road">
-
-                <div class="week">
-                    W1
-                </div>
-
-                <div>
-
-                    <h3>
-                        SQL & Databases
-                    </h3>
-
-                    <p class="muted">
-                        Joins, subqueries, normalization and practical queries.
-                    </p>
-
-                    <button
-                        type="button"
-                        class="btn secondary">
-                        Mark Complete
-                    </button>
-
-                </div>
-
-            </div>
-
-
-            <div class="card road">
-
-                <div class="week">
-                    W2
-                </div>
-
-                <div>
-
-                    <h3>
-                        Python & DSA
-                    </h3>
-
-                    <p class="muted">
-                        Functions, OOP, arrays, strings and common interview problems.
-                    </p>
-
-                    <button
-                        type="button"
-                        class="btn secondary">
-                        Mark Complete
-                    </button>
-
-                </div>
-
-            </div>
-
-
-            <div class="card road">
-
-                <div class="week">
-                    W3
-                </div>
-
-                <div>
-
-                    <h3>
-                        Projects & Git
-                    </h3>
-
-                    <p class="muted">
-                        Improve your GitHub portfolio and explain projects clearly.
-                    </p>
-
-                    <button
-                        type="button"
-                        class="btn secondary">
-                        Mark Complete
-                    </button>
-
-                </div>
-
-            </div>
-
-
-            <div class="card road">
-
-                <div class="week">
-                    W4
-                </div>
-
-                <div>
-
-                    <h3>
-                        Interview Practice
-                    </h3>
-
-                    <p class="muted">
-                        HR questions, technical questions and mock interview sessions.
-                    </p>
-
-                    <button
-                        type="button"
-                        class="btn secondary">
-                        Mark Complete
-                    </button>
-
-                </div>
-
-            </div>
-
+        <div class="card road">
+          <div class="week">W1</div>
+          <div>
+            <h3>SQL &amp; Databases</h3>
+            <p class="muted">Joins, subqueries, normalization and practical queries.</p>
+            <button type="button" class="btn secondary">Mark Complete</button>
+          </div>
         </div>
 
-    </section>
+        <div class="card road">
+          <div class="week">W2</div>
+          <div>
+            <h3>Python &amp; DSA</h3>
+            <p class="muted">Functions, OOP, arrays, strings and common interview problems.</p>
+            <button type="button" class="btn secondary">Mark Complete</button>
+          </div>
+        </div>
 
+        <div class="card road">
+          <div class="week">W3</div>
+          <div>
+            <h3>Projects &amp; Git</h3>
+            <p class="muted">Improve your GitHub portfolio and explain projects clearly.</p>
+            <button type="button" class="btn secondary">Mark Complete</button>
+          </div>
+        </div>
+
+        <div class="card road">
+          <div class="week">W4</div>
+          <div>
+            <h3>Interview Practice</h3>
+            <p class="muted">HR questions, technical questions and mock interview sessions.</p>
+            <button type="button" class="btn secondary">Mark Complete</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
 
     <!-- ================= ADMIN ================= -->
+    <section id="admin" class="page">
+      <h2>Placement Officer Dashboard</h2>
 
-    <section
-        id="admin"
-        class="page">
-
-        <h2>
-            Placement Officer Dashboard
-        </h2>
-
-
-        <div class="grid">
-
-            <div class="card">
-
-                <div class="muted">
-                    Students
-                </div>
-
-                <div class="stat">
-                    0
-                </div>
-
-            </div>
-
-
-            <div class="card">
-
-                <div class="muted">
-                    Interview Ready
-                </div>
-
-                <div class="stat">
-                    0%
-                </div>
-
-            </div>
-
-
-            <div class="card">
-
-                <div class="muted">
-                    Active Drives
-                </div>
-
-                <div class="stat">
-                    0
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <h2 class="section-title">
-            Batch Readiness
-        </h2>
-
-
+      <div class="grid">
         <div class="card">
-
-            <p>
-                Ready for interviews
-            </p>
-
-            <div class="progress">
-
-                <div
-                    class="bar"
-                    style="width:0%">
-                </div>
-
-            </div>
-
-
-            <p>
-                Need improvement
-            </p>
-
-            <div class="progress">
-
-                <div
-                    class="bar"
-                    style="width:0%">
-                </div>
-
-            </div>
-
+          <div class="muted">Students</div>
+          <div class="stat">0</div>
         </div>
+        <div class="card">
+          <div class="muted">Interview Ready</div>
+          <div class="stat">0%</div>
+        </div>
+        <div class="card">
+          <div class="muted">Active Drives</div>
+          <div class="stat">0</div>
+        </div>
+      </div>
 
+      <h2 class="section-title">Batch Readiness</h2>
+
+      <div class="card">
+        <p>Ready for interviews</p>
+        <div class="progress"><div class="bar" style="width:0%"></div></div>
+
+        <p>Need improvement</p>
+        <div class="progress"><div class="bar" style="width:0%"></div></div>
+      </div>
+      <h2 class="section-title">Manage Drives</h2>
+
+      <div class="card">
+        <label class="field" for="jobTitle">Job title</label>
+        <input class="login-input" id="jobTitle" type="text" maxlength="100" placeholder="Junior Python Developer">
+
+        <label class="field" for="jobCompany">Company</label>
+        <input class="login-input" id="jobCompany" type="text" maxlength="100" placeholder="TechNova">
+
+        <label class="field" for="jobLocation">Location</label>
+        <input class="login-input" id="jobLocation" type="text" maxlength="100" placeholder="Kochi / Hybrid">
+
+        <label class="field" for="jobSkills">Required skills (separate with commas)</label>
+        <input class="login-input" id="jobSkills" type="text" placeholder="Python, SQL, Git">
+        <p class="muted">Use the same names the resume analyzer finds, like Python, Java, JavaScript, SQL, React, Node.js, Git, DSA, OOP, HTML, CSS, MongoDB. Matching depends on the spelling.</p>
+
+        <button id="addJobBtn" type="button" class="btn" style="margin-top:12px" onclick="addJob()">Add drive</button>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h3 style="margin-top:0">All drives</h3>
+        <div id="adminJobs"></div>
+      </div>
     </section>
 
-</main>
+  </main>
+</div>
 
-</div><!-- ================= TOAST ================= --><div
-    id="toast"
-    class="toast">
-</div><!-- ================= JAVASCRIPT ================= -->
-<script src="script.js"></script><script src="api.js"></script></body>
+<!-- ================= TOAST ================= -->
+<div id="toast" class="toast"></div>
+
+<!-- ================= JAVASCRIPT ================= -->
+<script src="script.js"></script>
+<script src="api.js"></script>
+</body>
 </html>

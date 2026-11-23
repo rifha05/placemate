@@ -1,5 +1,7 @@
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
@@ -24,7 +26,65 @@ const ADMINS = (process.env.ADMIN_EMAILS || '')
   .split(',')
   .map(s => s.trim().toLowerCase())
   .filter(Boolean);
+const mailer = process.env.MAIL_USER && process.env.MAIL_PASS
+  ? nodemailer.createTransport({
+      host: process.env.MAIL_HOST || 'smtp-relay.brevo.com',
+      port: 587,
+      secure: false,
+      auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+    })
+  : null;
 
+const BLOCKED_DOMAINS = new Set([
+  'mailinator.com', 'tempmail.com', '10minutemail.com', 'guerrillamail.com',
+  'yopmail.com', 'trashmail.com', 'sharklasers.com', 'throwawaymail.com',
+]);
+
+function validEmail(email) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return false;
+  return !BLOCKED_DOMAINS.has(email.split('@')[1]);
+}
+
+async function emailDomainExists(email) {
+  try {
+    const r = await dns.promises.resolveMx(email.split('@')[1]);
+    return r.length > 0;
+  } catch (e) {
+    return !['ENOTFOUND', 'ENODATA'].includes(e.code);
+  }
+}
+
+// Returns a clean 10-digit Indian mobile number, or null
+function cleanPhone(raw) {
+  let p = String(raw || '').replace(/[\s\-()]/g, '');
+  p = p.replace(/^(\+91|91|0)(?=\d{10}$)/, '');
+  if (!/^[6-9]\d{9}$/.test(p)) return null;
+  if (/^(\d)\1{9}$/.test(p)) return null; // 9999999999
+  return p;
+}
+
+const hashOtp = (email, code) =>
+  crypto.createHash('sha256').update(email + ':' + code + ':' + JWT_SECRET).digest('hex');
+
+async function sendOtp(user) {
+  const code = String(crypto.randomInt(100000, 1000000));
+  await q(
+    `UPDATE users SET otp_hash = $1, otp_expires = now() + interval '10 minutes', otp_attempts = 0
+     WHERE id = $2`,
+    [hashOtp(user.email, code), user.id]
+  );
+  if (!mailer) {
+    if (PROD) throw new Error('Email is not configured');
+    console.log(`DEV ONLY: code for ${user.email} is ${code}`);
+    return;
+  }
+  await mailer.sendMail({
+    from: `PlaceMate <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
+    to: user.email,
+    subject: 'PlaceMate verification code: ' + code,
+    text: `Hi,\n\nYour PlaceMate verification code is ${code}.\nIt expires in 10 minutes.\n\nIf you did not sign up for PlaceMate, you can ignore this email.\n\n— PlaceMate`,
+  });
+}
 const app = express();
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false })); // frontend uses inline onclick handlers
@@ -157,36 +217,94 @@ app.get('/healthz', wrap(async (req, res) => {
 app.post('/api/auth/register', authLimiter, wrap(async (req, res) => {
   const full_name = String(req.body.full_name || '').trim();
   const email = String(req.body.email || '').trim().toLowerCase();
-  const phone = String(req.body.phone || '').trim();
+  const phone = cleanPhone(req.body.phone);
   const password = String(req.body.password || '');
 
-  if (!full_name || !phone) {
-    return res.status(400).json({ error: 'Full name and phone number are required.' });
+  if (!full_name) return res.status(400).json({ error: 'Please enter your full name.' });
+  if (!phone) return res.status(400).json({ error: 'Enter a valid 10-digit Indian mobile number.' });
+  if (!validEmail(email)) {
+    return res.status(400).json({ error: 'Enter a real email address. Temporary email services are not allowed.' });
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-    return res.status(400).json({ error: 'Please enter a valid email.' });
+  if (!(await emailDomainExists(email))) {
+    return res.status(400).json({ error: 'That email domain does not exist. Check for typos.' });
   }
   if (password.length < 8 || password.length > 128) {
     return res.status(400).json({ error: 'Password must be 8–128 characters.' });
   }
 
-  const exists = (await q('SELECT 1 FROM users WHERE email = $1', [email])).rows[0];
-  if (exists) {
+  const existing = (await q('SELECT id, email_verified FROM users WHERE email = $1', [email])).rows[0];
+  if (existing && existing.email_verified) {
     return res.status(409).json({ error: 'This email is already registered. Please sign in.' });
   }
 
-  const role = ADMINS.includes(email) ? 'admin' : 'student';
-  const ins = await q(
-    `INSERT INTO users (full_name, email, phone, password_hash, role)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING id, full_name, email, phone, role`,
-    [full_name, email, phone, await bcrypt.hash(password, 10), role]
-  );
+  const hash = await bcrypt.hash(password, 10);
+  let user;
+  if (existing) {
+    user = (await q(
+      `UPDATE users SET full_name = $1, phone = $2, password_hash = $3 WHERE id = $4 RETURNING id, email`,
+      [full_name, phone, hash, existing.id]
+    )).rows[0];
+  } else {
+    const role = ADMINS.includes(email) ? 'admin' : 'student';
+    user = (await q(
+      `INSERT INTO users (full_name, email, phone, password_hash, role)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, email`,
+      [full_name, email, phone, hash, role]
+    )).rows[0];
+  }
 
-  const user = ins.rows[0];
-  res.status(201).json({ token: sign(user), user: publicUser(user) });
+  try {
+    await sendOtp(user);
+  } catch (err) {
+    console.error('Email error:', err);
+    return res.status(502).json({ error: 'Could not send the verification email. Try again.' });
+  }
+  res.status(201).json({ needsVerification: true, email });
 }));
 
+app.post('/api/auth/verify', authLimiter, wrap(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const code = String(req.body.code || '').trim();
+  const user = (await q('SELECT * FROM users WHERE email = $1', [email])).rows[0];
+
+  if (!user) return res.status(400).json({ error: 'Invalid code.' });
+  if (user.email_verified) return res.status(400).json({ error: 'Already verified. Please sign in.' });
+  if (!user.otp_hash || !user.otp_expires || new Date(user.otp_expires) < new Date()) {
+    return res.status(400).json({ error: 'Code expired. Tap "Resend code".' });
+  }
+  if (user.otp_attempts >= 5) {
+    return res.status(429).json({ error: 'Too many wrong tries. Tap "Resend code".' });
+  }
+
+  const a = Buffer.from(hashOtp(email, code));
+  const b = Buffer.from(user.otp_hash);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    await q('UPDATE users SET otp_attempts = otp_attempts + 1 WHERE id = $1', [user.id]);
+    return res.status(400).json({ error: 'Wrong code. Try again.' });
+  }
+
+  await q('UPDATE users SET email_verified = true, otp_hash = NULL, otp_expires = NULL WHERE id = $1', [user.id]);
+  res.json({ token: sign(user), user: publicUser(user) });
+}));
+
+app.post('/api/auth/resend', authLimiter, wrap(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const user = (await q('SELECT * FROM users WHERE email = $1', [email])).rows[0];
+
+  if (user && !user.email_verified) {
+    const sentAt = user.otp_expires ? new Date(user.otp_expires).getTime() - 10 * 60 * 1000 : 0;
+    if (Date.now() - sentAt < 60 * 1000) {
+      return res.status(429).json({ error: 'Please wait a minute before asking for another code.' });
+    }
+    try {
+      await sendOtp(user);
+    } catch (err) {
+      console.error('Email error:', err);
+      return res.status(502).json({ error: 'Could not send the email. Try again.' });
+    }
+  }
+  res.json({ ok: true });
+}));
 /* ---------- auth: login ---------- */
 app.post('/api/auth/login', authLimiter, wrap(async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
@@ -199,6 +317,97 @@ app.post('/api/auth/login', authLimiter, wrap(async (req, res) => {
   const user = (await q('SELECT * FROM users WHERE email = $1', [email])).rows[0];
   const ok = user && (await bcrypt.compare(password, user.password_hash));
   if (!ok) return res.status(401).json({ error: 'Invalid email or password.' });
+  app.post('/api/auth/register', authLimiter, wrap(async (req, res) => {
+  const full_name = String(req.body.full_name || '').trim();
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const phone = cleanPhone(req.body.phone);
+  const password = String(req.body.password || '');
+
+  if (!full_name) return res.status(400).json({ error: 'Please enter your full name.' });
+  if (!phone) return res.status(400).json({ error: 'Enter a valid 10-digit Indian mobile number.' });
+  if (!validEmail(email)) {
+    return res.status(400).json({ error: 'Enter a real email address. Temporary email services are not allowed.' });
+  }
+  if (!(await emailDomainExists(email))) {
+    return res.status(400).json({ error: 'That email domain does not exist. Check for typos.' });
+  }
+  if (password.length < 8 || password.length > 128) {
+    return res.status(400).json({ error: 'Password must be 8–128 characters.' });
+  }
+
+  const existing = (await q('SELECT id, email_verified FROM users WHERE email = $1', [email])).rows[0];
+  if (existing && existing.email_verified) {
+    return res.status(409).json({ error: 'This email is already registered. Please sign in.' });
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+  let user;
+  if (existing) {
+    user = (await q(
+      `UPDATE users SET full_name = $1, phone = $2, password_hash = $3 WHERE id = $4 RETURNING id, email`,
+      [full_name, phone, hash, existing.id]
+    )).rows[0];
+  } else {
+    const role = ADMINS.includes(email) ? 'admin' : 'student';
+    user = (await q(
+      `INSERT INTO users (full_name, email, phone, password_hash, role)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, email`,
+      [full_name, email, phone, hash, role]
+    )).rows[0];
+  }
+
+  try {
+    await sendOtp(user);
+  } catch (err) {
+    console.error('Email error:', err);
+    return res.status(502).json({ error: 'Could not send the verification email. Try again.' });
+  }
+  res.status(201).json({ needsVerification: true, email });
+}));
+
+app.post('/api/auth/verify', authLimiter, wrap(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const code = String(req.body.code || '').trim();
+  const user = (await q('SELECT * FROM users WHERE email = $1', [email])).rows[0];
+
+  if (!user) return res.status(400).json({ error: 'Invalid code.' });
+  if (user.email_verified) return res.status(400).json({ error: 'Already verified. Please sign in.' });
+  if (!user.otp_hash || !user.otp_expires || new Date(user.otp_expires) < new Date()) {
+    return res.status(400).json({ error: 'Code expired. Tap "Resend code".' });
+  }
+  if (user.otp_attempts >= 5) {
+    return res.status(429).json({ error: 'Too many wrong tries. Tap "Resend code".' });
+  }
+
+  const a = Buffer.from(hashOtp(email, code));
+  const b = Buffer.from(user.otp_hash);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    await q('UPDATE users SET otp_attempts = otp_attempts + 1 WHERE id = $1', [user.id]);
+    return res.status(400).json({ error: 'Wrong code. Try again.' });
+  }
+
+  await q('UPDATE users SET email_verified = true, otp_hash = NULL, otp_expires = NULL WHERE id = $1', [user.id]);
+  res.json({ token: sign(user), user: publicUser(user) });
+}));
+
+app.post('/api/auth/resend', authLimiter, wrap(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const user = (await q('SELECT * FROM users WHERE email = $1', [email])).rows[0];
+
+  if (user && !user.email_verified) {
+    const sentAt = user.otp_expires ? new Date(user.otp_expires).getTime() - 10 * 60 * 1000 : 0;
+    if (Date.now() - sentAt < 60 * 1000) {
+      return res.status(429).json({ error: 'Please wait a minute before asking for another code.' });
+    }
+    try {
+      await sendOtp(user);
+    } catch (err) {
+      console.error('Email error:', err);
+      return res.status(502).json({ error: 'Could not send the email. Try again.' });
+    }
+  }
+  res.json({ ok: true });
+}));
 
   if (ADMINS.includes(email) && user.role !== 'admin') {
     await q("UPDATE users SET role = 'admin' WHERE id = $1", [user.id]);
@@ -435,6 +644,47 @@ app.get('/api/admin/stats', auth, adminOnly, wrap(async (req, res) => {
     needPct: rows.length ? 100 - pct : 0,
     drives,
   });
+}));
+/* ---------- admin: manage drives ---------- */
+const cleanText = (v, max) => String(v || '').trim().slice(0, max);
+
+app.get('/api/admin/jobs', auth, adminOnly, wrap(async (req, res) => {
+  const { rows } = await q(
+    'SELECT id, title, company, location, skills, active FROM jobs ORDER BY id DESC'
+  );
+  res.json({ jobs: rows });
+}));
+
+app.post('/api/admin/jobs', auth, adminOnly, wrap(async (req, res) => {
+  const title = cleanText(req.body.title, 100);
+  const company = cleanText(req.body.company, 100);
+  const location = cleanText(req.body.location, 100);
+  const skills = [...new Set(
+    String(req.body.skills || '').split(',').map(s => s.trim().slice(0, 30)).filter(Boolean)
+  )].slice(0, 8);
+
+  if (!title || !company || !location) {
+    return res.status(400).json({ error: 'Title, company and location are required.' });
+  }
+  if (!skills.length) {
+    return res.status(400).json({ error: 'Add at least one skill, separated by commas.' });
+  }
+
+  await q(
+    'INSERT INTO jobs (title, company, location, skills, base_match) VALUES ($1,$2,$3,$4,$5)',
+    [title, company, location, JSON.stringify(skills), 60]
+  );
+  res.status(201).json({ ok: true });
+}));
+
+app.put('/api/admin/jobs/:id', auth, adminOnly, wrap(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || typeof req.body.active !== 'boolean') {
+    return res.status(400).json({ error: 'Invalid request.' });
+  }
+  const r = await q('UPDATE jobs SET active = $1 WHERE id = $2', [req.body.active, id]);
+  if (!r.rowCount) return res.status(404).json({ error: 'Job not found' });
+  res.json({ id, active: req.body.active });
 }));
 
 /* ---------- static frontend ---------- */

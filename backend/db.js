@@ -36,7 +36,15 @@ async function init() {
     ADD COLUMN IF NOT EXISTS full_name TEXT,
     ADD COLUMN IF NOT EXISTS phone TEXT
   `);
-
+// EMAIL VERIFICATION
+  await q(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT true`);
+  await q(`ALTER TABLE users ALTER COLUMN email_verified SET DEFAULT false`);
+  await q(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS otp_hash TEXT,
+    ADD COLUMN IF NOT EXISTS otp_expires TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS otp_attempts INTEGER NOT NULL DEFAULT 0
+  `);
   // RESUMES TABLE
   await q(`
     CREATE TABLE IF NOT EXISTS resumes (
