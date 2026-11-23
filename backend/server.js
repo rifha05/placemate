@@ -73,25 +73,40 @@ async function sendOtp(user) {
      WHERE id = $2`,
     [hashOtp(user.email, code), user.id]
   );
+
+  const subject = 'PlaceMate verification code: ' + code;
+  const text = `Hi,\n\nYour PlaceMate verification code is ${code}.\nIt expires in 10 minutes.\n\nIf you did not sign up for PlaceMate, you can ignore this email.\n\n— PlaceMate`;
+  const from = process.env.MAIL_FROM || process.env.MAIL_USER;
+
+  // Live site (Render): Brevo web API over HTTPS
+  if (process.env.BREVO_API_KEY) {
+    const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': process.env.BREVO_API_KEY,
+        'content-type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { name: 'PlaceMate', email: from },
+        to: [{ email: user.email }],
+        subject,
+        textContent: text,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!r.ok) throw new Error('Brevo API ' + r.status + ': ' + (await r.text()));
+    return;
+  }
+
+  // Local: SMTP, or print the code in the terminal
   if (!mailer) {
     if (PROD) throw new Error('Email is not configured');
     console.log(`DEV ONLY: code for ${user.email} is ${code}`);
     return;
   }
-  await mailer.sendMail({
-    from: `PlaceMate <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
-    to: user.email,
-    subject: 'PlaceMate verification code: ' + code,
-    text: `Hi,\n\nYour PlaceMate verification code is ${code}.\nIt expires in 10 minutes.\n\nIf you did not sign up for PlaceMate, you can ignore this email.\n\n— PlaceMate`,
-  });
+  await mailer.sendMail({ from: `PlaceMate <${from}>`, to: user.email, subject, text });
 }
-const app = express();
-app.set('trust proxy', 1);
-app.use(helmet({ contentSecurityPolicy: false })); // frontend uses inline onclick handlers
-if (process.env.CORS_ORIGIN) {
-  app.use(cors({ origin: process.env.CORS_ORIGIN.split(',').map(s => s.trim()) }));
-}
-app.use(express.json({ limit: '100kb' }));
 
 /* ---------- helpers ---------- */
 const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
