@@ -269,8 +269,8 @@ app.post('/api/auth/register', authLimiter, wrap(async (req, res) => {
   } else {
     const role = ADMINS.includes(email) ? 'admin' : 'student';
     user = (await q(
-      `INSERT INTO users (full_name, email, phone, password_hash, role,email verified)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id, email`,
+      `INSERT INTO users (full_name, email, phone, password_hash, role, email_verified)
+       VALUES ($1, $2, $3, $4, $5, false) RETURNING id, email`,
       [full_name, email, phone, hash, role]
     )).rows[0];
   }
