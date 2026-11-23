@@ -35,6 +35,13 @@ const mailer = process.env.MAIL_USER && process.env.MAIL_PASS
     })
   : null;
 
+/* ---------- app setup (this was missing) ---------- */
+const app = express();
+app.set('trust proxy', 1); // needed behind Render/Heroku so rate limiting sees real IPs
+app.use(helmet({ contentSecurityPolicy: false })); // frontend uses inline scripts/styles
+app.use(cors());
+app.use(express.json({ limit: '100kb' }));
+
 const BLOCKED_DOMAINS = new Set([
   'mailinator.com', 'tempmail.com', '10minutemail.com', 'guerrillamail.com',
   'yopmail.com', 'trashmail.com', 'sharklasers.com', 'throwawaymail.com',
@@ -277,6 +284,7 @@ app.post('/api/auth/register', authLimiter, wrap(async (req, res) => {
   res.status(201).json({ needsVerification: true, email });
 }));
 
+/* ---------- auth: verify ---------- */
 app.post('/api/auth/verify', authLimiter, wrap(async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const code = String(req.body.code || '').trim();
@@ -302,6 +310,7 @@ app.post('/api/auth/verify', authLimiter, wrap(async (req, res) => {
   res.json({ token: sign(user), user: publicUser(user) });
 }));
 
+/* ---------- auth: resend ---------- */
 app.post('/api/auth/resend', authLimiter, wrap(async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const user = (await q('SELECT * FROM users WHERE email = $1', [email])).rows[0];
@@ -320,6 +329,7 @@ app.post('/api/auth/resend', authLimiter, wrap(async (req, res) => {
   }
   res.json({ ok: true });
 }));
+
 /* ---------- auth: login ---------- */
 app.post('/api/auth/login', authLimiter, wrap(async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
@@ -332,97 +342,14 @@ app.post('/api/auth/login', authLimiter, wrap(async (req, res) => {
   const user = (await q('SELECT * FROM users WHERE email = $1', [email])).rows[0];
   const ok = user && (await bcrypt.compare(password, user.password_hash));
   if (!ok) return res.status(401).json({ error: 'Invalid email or password.' });
-  app.post('/api/auth/register', authLimiter, wrap(async (req, res) => {
-  const full_name = String(req.body.full_name || '').trim();
-  const email = String(req.body.email || '').trim().toLowerCase();
-  const phone = cleanPhone(req.body.phone);
-  const password = String(req.body.password || '');
 
-  if (!full_name) return res.status(400).json({ error: 'Please enter your full name.' });
-  if (!phone) return res.status(400).json({ error: 'Enter a valid 10-digit Indian mobile number.' });
-  if (!validEmail(email)) {
-    return res.status(400).json({ error: 'Enter a real email address. Temporary email services are not allowed.' });
+  if (!user.email_verified) {
+    return res.status(403).json({
+      error: 'Please verify your email first.',
+      needsVerification: true,
+      email,
+    });
   }
-  if (!(await emailDomainExists(email))) {
-    return res.status(400).json({ error: 'That email domain does not exist. Check for typos.' });
-  }
-  if (password.length < 8 || password.length > 128) {
-    return res.status(400).json({ error: 'Password must be 8–128 characters.' });
-  }
-
-  const existing = (await q('SELECT id, email_verified FROM users WHERE email = $1', [email])).rows[0];
-  if (existing && existing.email_verified) {
-    return res.status(409).json({ error: 'This email is already registered. Please sign in.' });
-  }
-
-  const hash = await bcrypt.hash(password, 10);
-  let user;
-  if (existing) {
-    user = (await q(
-      `UPDATE users SET full_name = $1, phone = $2, password_hash = $3 WHERE id = $4 RETURNING id, email`,
-      [full_name, phone, hash, existing.id]
-    )).rows[0];
-  } else {
-    const role = ADMINS.includes(email) ? 'admin' : 'student';
-    user = (await q(
-      `INSERT INTO users (full_name, email, phone, password_hash, role)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id, email`,
-      [full_name, email, phone, hash, role]
-    )).rows[0];
-  }
-
-  try {
-    await sendOtp(user);
-  } catch (err) {
-    console.error('Email error:', err);
-    return res.status(502).json({ error: 'Could not send the verification email. Try again.' });
-  }
-  res.status(201).json({ needsVerification: true, email });
-}));
-
-app.post('/api/auth/verify', authLimiter, wrap(async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
-  const code = String(req.body.code || '').trim();
-  const user = (await q('SELECT * FROM users WHERE email = $1', [email])).rows[0];
-
-  if (!user) return res.status(400).json({ error: 'Invalid code.' });
-  if (user.email_verified) return res.status(400).json({ error: 'Already verified. Please sign in.' });
-  if (!user.otp_hash || !user.otp_expires || new Date(user.otp_expires) < new Date()) {
-    return res.status(400).json({ error: 'Code expired. Tap "Resend code".' });
-  }
-  if (user.otp_attempts >= 5) {
-    return res.status(429).json({ error: 'Too many wrong tries. Tap "Resend code".' });
-  }
-
-  const a = Buffer.from(hashOtp(email, code));
-  const b = Buffer.from(user.otp_hash);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-    await q('UPDATE users SET otp_attempts = otp_attempts + 1 WHERE id = $1', [user.id]);
-    return res.status(400).json({ error: 'Wrong code. Try again.' });
-  }
-
-  await q('UPDATE users SET email_verified = true, otp_hash = NULL, otp_expires = NULL WHERE id = $1', [user.id]);
-  res.json({ token: sign(user), user: publicUser(user) });
-}));
-
-app.post('/api/auth/resend', authLimiter, wrap(async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
-  const user = (await q('SELECT * FROM users WHERE email = $1', [email])).rows[0];
-
-  if (user && !user.email_verified) {
-    const sentAt = user.otp_expires ? new Date(user.otp_expires).getTime() - 10 * 60 * 1000 : 0;
-    if (Date.now() - sentAt < 60 * 1000) {
-      return res.status(429).json({ error: 'Please wait a minute before asking for another code.' });
-    }
-    try {
-      await sendOtp(user);
-    } catch (err) {
-      console.error('Email error:', err);
-      return res.status(502).json({ error: 'Could not send the email. Try again.' });
-    }
-  }
-  res.json({ ok: true });
-}));
 
   if (ADMINS.includes(email) && user.role !== 'admin') {
     await q("UPDATE users SET role = 'admin' WHERE id = $1", [user.id]);
@@ -558,7 +485,7 @@ app.get('/api/resume', auth, wrap(async (req, res) => {
     filename: r.filename,
     atsScore: r.ats_score,
     skills: r.skills,
-    suggestions: r.suggestions
+    suggestions: r.suggestions,
   } : null);
 }));
 
@@ -660,6 +587,7 @@ app.get('/api/admin/stats', auth, adminOnly, wrap(async (req, res) => {
     drives,
   });
 }));
+
 /* ---------- admin: manage drives ---------- */
 const cleanText = (v, max) => String(v || '').trim().slice(0, max);
 
