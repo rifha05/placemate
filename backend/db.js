@@ -36,15 +36,25 @@ async function init() {
     ADD COLUMN IF NOT EXISTS full_name TEXT,
     ADD COLUMN IF NOT EXISTS phone TEXT
   `);
-// EMAIL VERIFICATION
-  await q(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT true`);
-  await q(`ALTER TABLE users ALTER COLUMN email_verified SET DEFAULT false`);
+
+  // EMAIL VERIFICATION
+  await q(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT true
+  `);
+
+  await q(`
+    ALTER TABLE users
+    ALTER COLUMN email_verified SET DEFAULT false
+  `);
+
   await q(`
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS otp_hash TEXT,
     ADD COLUMN IF NOT EXISTS otp_expires TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS otp_attempts INTEGER NOT NULL DEFAULT 0
   `);
+
   // RESUMES TABLE
   await q(`
     CREATE TABLE IF NOT EXISTS resumes (
@@ -58,7 +68,7 @@ async function init() {
     )
   `);
 
-  // JOBS TABLE
+  // EXISTING JOBS TABLE
   await q(`
     CREATE TABLE IF NOT EXISTS jobs (
       id SERIAL PRIMARY KEY,
@@ -71,12 +81,30 @@ async function init() {
     )
   `);
 
-  // SAVED JOBS TABLE
+  // EXISTING SAVED JOBS TABLE
   await q(`
     CREATE TABLE IF NOT EXISTS saved_jobs (
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
       PRIMARY KEY (user_id, job_id)
+    )
+  `);
+
+  // NEW TABLE FOR SAVED ADZUNA JOBS
+  await q(`
+    CREATE TABLE IF NOT EXISTS saved_external_jobs (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      adzuna_job_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      company TEXT,
+      location TEXT,
+      apply_url TEXT,
+      salary_min NUMERIC,
+      salary_max NUMERIC,
+      description TEXT,
+      skills JSONB DEFAULT '[]'::jsonb,
+      saved_at TIMESTAMPTZ DEFAULT now(),
+      PRIMARY KEY (user_id, adzuna_job_id)
     )
   `);
 

@@ -261,12 +261,50 @@
 
     <!-- ================= JOBS ================= -->
     <section id="jobs" class="page">
-      <h2>Recommended Jobs</h2>
-      <p class="muted">Ranked using your skills, location and profile.</p>
+      <h2>Find Your Next Opportunity</h2>
+      <p class="muted">Search live vacancies from Adzuna or explore your existing PlaceMate job matches.</p>
 
-      <div class="list">
-        <div class="card">Loading jobs...</div>
+      <!-- Adzuna job search controls. These IDs are used by frontend/api.js. -->
+      <div class="card" style="margin-bottom:18px">
+        <h3 style="margin-top:0">Search jobs</h3>
+        <div class="grid">
+          <div>
+            <label class="field" for="jobSearchInput">Job title or skill</label>
+            <input
+              class="login-input"
+              id="jobSearchInput"
+              type="search"
+              maxlength="100"
+              placeholder="e.g. Python Developer"
+              autocomplete="off"
+            >
+          </div>
+          <div>
+            <label class="field" for="jobLocationInput">Location</label>
+            <input
+              class="login-input"
+              id="jobLocationInput"
+              type="text"
+              maxlength="100"
+              placeholder="e.g. Kochi, Kerala"
+              value="Kochi"
+            >
+          </div>
+        </div>
+        <button id="jobSearchBtn" type="button" class="btn" style="margin-top:12px">
+          Search Adzuna Jobs →
+        </button>
+        <p class="muted" style="margin-bottom:0">Tip: Try a job title such as Python Developer, Data Analyst, or Frontend Developer.</p>
       </div>
+
+      <h3>Job results</h3>
+      <div class="list">
+        <div class="card">Enter a job title and select Search Adzuna Jobs to find vacancies.</div>
+      </div>
+
+      <p class="muted" style="margin-top:14px">
+        Job listings provided by <a href="https://www.adzuna.in/" target="_blank" rel="noopener noreferrer">Adzuna</a>.
+      </p>
     </section>
 
     <!-- ================= INTERVIEW ================= -->
