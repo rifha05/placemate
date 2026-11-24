@@ -217,6 +217,50 @@
       say(err.message);
     }
   };
+  var resetEmail = '';
+
+  window.forgotPassword = async function (e) {
+    if (e && e.preventDefault) e.preventDefault();
+    var btn = document.querySelector('#forgotForm button[type="submit"]');
+    setBusy(btn, true, 'Sending...');
+    try {
+      resetEmail = $('forgotEmail').value.trim().toLowerCase();
+      await request('auth/forgot', { method: 'POST', body: { email: resetEmail } });
+      say('If that email has an account, a code was sent. Check Spam too.');
+      $('resetMsg').textContent = 'Enter the 6-digit code sent to ' + resetEmail + ' and choose a new password.';
+      window.showAuthForm('resetForm');
+    } catch (err) {
+      say(err.message);
+    } finally {
+      setBusy(btn, false);
+    }
+    return false;
+  };
+
+  window.resetPassword = async function (e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if ($('newPassword').value !== $('confirmNewPassword').value) {
+      say('Passwords do not match.');
+      return false;
+    }
+    var btn = document.querySelector('#resetForm button[type="submit"]');
+    setBusy(btn, true, 'Saving...');
+    try {
+      await request('auth/reset', {
+        method: 'POST',
+        body: { email: resetEmail, code: $('resetCode').value.trim(), password: $('newPassword').value }
+      });
+      ['resetCode', 'newPassword', 'confirmNewPassword'].forEach(function (id) { $(id).value = ''; });
+      say('Password changed. Please sign in.');
+      window.showAuthForm('signInForm');
+      $('loginEmail').value = resetEmail;
+    } catch (err) {
+      say(err.message);
+    } finally {
+      setBusy(btn, false);
+    }
+    return false;
+  };
   window.logoutDemo = function () {
     setToken(null);
     window.showIntro();

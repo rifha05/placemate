@@ -56,6 +56,7 @@
 
         <label class="field" for="loginPassword">Password</label>
         <input class="login-input" id="loginPassword" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+        <p style="text-align:right;margin:8px 0 0"><a href="#" onclick="showForgot(); return false;">Forgot password?</a></p>
 
         <button class="big-btn login-submit" type="submit">Sign In →</button>
 
@@ -66,9 +67,9 @@
 
       <!-- REGISTER -->
       <form id="registerForm" class="login-card" style="display:none" onsubmit="registerDemo(event); return false;">
-        <span class="eyebrow">JOIN PLACEMATE</span>
+        <span class="eyebrow">GET STARTED</span>
         <h1>Create Account</h1>
-        <p>Start your placement preparation today.</p>
+        <p>Start your placement journey.</p>
 
         <label class="field" for="regName">Full Name</label>
         <input class="login-input" id="regName" type="text" placeholder="Enter your full name" autocomplete="name" required>
@@ -108,6 +109,39 @@
 
         <p>Didn't get it? <a href="#" onclick="resendCode(); return false;">Resend code</a></p>
       </form>
+
+      <!-- FORGOT PASSWORD -->
+      <form id="forgotForm" class="login-card" style="display:none" onsubmit="forgotPassword(event); return false;">
+        <span class="eyebrow">RESET PASSWORD</span>
+        <h1>Forgot Password</h1>
+        <p>Enter your email and we will send you a 6-digit code.</p>
+
+        <label class="field" for="forgotEmail">Email Address</label>
+        <input class="login-input" id="forgotEmail" type="email" placeholder="Enter your email" autocomplete="email" required>
+
+        <button class="big-btn login-submit" type="submit">Send code →</button>
+
+        <p><a href="#" onclick="showSignIn(); return false;">← Back to sign in</a></p>
+      </form>
+
+      <!-- NEW PASSWORD -->
+      <form id="resetForm" class="login-card" style="display:none" onsubmit="resetPassword(event); return false;">
+        <span class="eyebrow">ALMOST DONE</span>
+        <h1>New Password</h1>
+        <p id="resetMsg">Enter the 6-digit code and choose a new password.</p>
+
+        <label class="field" for="resetCode">6-digit code</label>
+        <input class="login-input" id="resetCode" type="text" inputmode="numeric" maxlength="6"
+          pattern="[0-9]{6}" autocomplete="one-time-code" placeholder="123456" required>
+
+        <label class="field" for="newPassword">New password</label>
+        <input class="login-input" id="newPassword" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters" required>
+
+        <label class="field" for="confirmNewPassword">Confirm new password</label>
+        <input class="login-input" id="confirmNewPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Repeat the new password" required>
+
+        <button class="big-btn login-submit" type="submit">Change password →</button>
+      </form>
     </div>
 
     <div class="gate-footer">Your placement journey starts with one step.</div>
@@ -127,7 +161,7 @@
       <button type="button" onclick="showPage('jobs', this)">💼 Job Match</button>
       <button type="button" onclick="showPage('interview', this)">🎙️ Mock Interview</button>
       <button type="button" onclick="showPage('roadmap', this)">🗺️ Skill Roadmap</button>
-      <button type="button" onclick="showPage('admin', this)">📊 Placement Admin</button>
+      <button type="button" id="adminNavBtn" style="display:none" onclick="showPage('admin', this)">📊 Placement Admin</button>
     </div>
   </aside>
 
@@ -238,7 +272,6 @@
     <!-- ================= INTERVIEW ================= -->
     <section id="interview" class="page">
       <div class="card">
-        <h2>🎙️ AI Mock Interview</h2>
         <p class="muted">Role: Junior Python Developer • Technical + HR</p>
 
         <div class="progress"><div id="interviewBar" class="bar" style="width:20%"></div></div>
@@ -329,6 +362,7 @@
         <p>Need improvement</p>
         <div class="progress"><div class="bar" style="width:0%"></div></div>
       </div>
+
       <h2 class="section-title">Manage Drives</h2>
 
       <div class="card">

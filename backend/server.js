@@ -73,7 +73,7 @@ function cleanPhone(raw) {
 const hashOtp = (email, code) =>
   crypto.createHash('sha256').update(email + ':' + code + ':' + JWT_SECRET).digest('hex');
 
-async function sendOtp(user) {
+async function sendOtp(user,purpose) {
   const code = String(crypto.randomInt(100000, 1000000));
   await q(
     `UPDATE users SET otp_hash = $1, otp_expires = now() + interval '10 minutes', otp_attempts = 0
@@ -81,8 +81,9 @@ async function sendOtp(user) {
     [hashOtp(user.email, code), user.id]
   );
 
-  const subject = 'PlaceMate verification code: ' + code;
-  const text = `Hi,\n\nYour PlaceMate verification code is ${code}.\nIt expires in 10 minutes.\n\nIf you did not sign up for PlaceMate, you can ignore this email.\n\n— PlaceMate`;
+  const reset = purpose === 'reset';
+  const subject = (reset ? 'PlaceMate password reset code: ' : 'PlaceMate verification code: ') + code;
+  const text = `Hi,\n\nYour PlaceMate ${reset ? 'password reset' : 'verification'} code is ${code}.\nIt expires in 10 minutes.\n\nIf you did not ask for this, you can ignore this email.\n\n— PlaceMate`;
   const from = process.env.MAIL_FROM || process.env.MAIL_USER;
 
   // Live site (Render): Brevo web API over HTTPS
@@ -327,6 +328,53 @@ app.post('/api/auth/resend', authLimiter, wrap(async (req, res) => {
       return res.status(502).json({ error: 'Could not send the email. Try again.' });
     }
   }
+  res.json({ ok: true });
+}));
+/* -----------auth:forget password---------- */
+
+app.post('/api/auth/forgot', authLimiter, wrap(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const user = (await q('SELECT * FROM users WHERE email = $1', [email])).rows[0];
+  console.log('forgot:', email, user ? 'found' : 'NOT found', user && user.email_verified);
+  if (user && user.email_verified) {
+    const sentAt = user.otp_expires ? new Date(user.otp_expires).getTime() - 10 * 60 * 1000 : 0;
+    if (Date.now() - sentAt >= 60 * 1000) {
+      try {
+        await sendOtp(user, 'reset');
+      } catch (err) {
+        console.error('Email error:', err);
+        return res.status(502).json({ error: 'Could not send the email. Try again.' });
+      }
+    }
+  }
+  res.json({ ok: true });
+}));
+
+app.post('/api/auth/reset', authLimiter, wrap(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const code = String(req.body.code || '').trim();
+  const password = String(req.body.password || '');
+  if (password.length < 8 || password.length > 128) {
+    return res.status(400).json({ error: 'Password must be 8–128 characters.' });
+  }
+  const user = (await q('SELECT * FROM users WHERE email = $1', [email])).rows[0];
+  if (!user || !user.email_verified || !user.otp_hash || !user.otp_expires ||
+      new Date(user.otp_expires) < new Date()) {
+    return res.status(400).json({ error: 'Code expired or invalid. Ask for a new one.' });
+  }
+  if (user.otp_attempts >= 5) {
+    return res.status(429).json({ error: 'Too many wrong tries. Ask for a new code.' });
+  }
+  const a = Buffer.from(hashOtp(email, code));
+  const b = Buffer.from(user.otp_hash);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    await q('UPDATE users SET otp_attempts = otp_attempts + 1 WHERE id = $1', [user.id]);
+    return res.status(400).json({ error: 'Wrong code. Try again.' });
+  }
+  await q(
+    'UPDATE users SET password_hash = $1, otp_hash = NULL, otp_expires = NULL, otp_attempts = 0 WHERE id = $2',
+    [await bcrypt.hash(password, 10), user.id]
+  );
   res.json({ ok: true });
 }));
 

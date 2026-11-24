@@ -1,4 +1,4 @@
-/* PlaceMate UI helpers.
+/* P//laceMate UI helpers.
    Login, registration and data loading are handled in api.js (loaded after this file). */
 
 // ---------- SCREEN SWITCHING ----------
@@ -22,20 +22,19 @@ function showLogin() {
   window.scrollTo(0, 0);
 }
 
-// SHOW REGISTRATION FORM
-function showRegister() {
-  document.getElementById('signInForm').style.display = 'none';
-  document.getElementById('verifyForm').style.display = 'none';
-  document.getElementById('registerForm').style.display = 'block';
+ // SHOW ONE AUTH FORM (hides the others)
+const AUTH_FORMS = ['signInForm', 'registerForm', 'verifyForm', 'forgotForm', 'resetForm'];
+
+function showAuthForm(id) {
+  AUTH_FORMS.forEach(function (f) {
+    const el = document.getElementById(f);
+    if (el) el.style.display = (f === id) ? 'block' : 'none';
+  });
 }
 
-// SHOW SIGN IN FORM
- function showSignIn() {
-  document.getElementById('registerForm').style.display = 'none';
-  document.getElementById('verifyForm').style.display = 'none';
-  document.getElementById('signInForm').style.display = 'block';
-}
-
+function showRegister() { showAuthForm('registerForm'); }
+function showSignIn() { showAuthForm('signInForm'); }
+function showForgot() { showAuthForm('forgotForm'); }
 // ---------- PAGE SWITCHING (dashboard sections) ----------
 function showPage(page, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -84,3 +83,6 @@ window.showSignIn = showSignIn;
 window.showPage = showPage;
 window.toast = toast;
 window.toggleSidebar = toggleSidebar;
+window.showAuthForm = showAuthForm;
+window.showForgot = showForgot;
+
