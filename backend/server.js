@@ -1,8 +1,13 @@
+require('dotenv').config();
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-require('dotenv').config();
+const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
+const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY;
+
+const ADZUNA_BASE_URL =
+  'https://api.adzuna.com/v1/api/jobs/in/search';
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -14,12 +19,15 @@ const jwt = require('jsonwebtoken');
 const pdfParse = require('pdf-parse');
 
 const { q, init } = require('./db');
-const { analyzeResume, scoreAnswer, QUESTIONS } = require('./analyzer');
+const {
+  analyzeResume,
+  extractSkills,
+  extractJobSkills,
+  calculateJobMatch,
+  scoreAnswer,
+  QUESTIONS
+} = require('./analyzer');
 // ADZUNA API CONFIGURATION
-const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
-const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY;
-
-const ADZUNA_BASE_URL = 'https://api.adzuna.com/v1/api/jobs/in/search';
 
 const PROD = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || (PROD ? null : 'dev-secret-change-me');
@@ -194,57 +202,7 @@ async function rankJobs(uid) {
         missing = required.filter(s => !have.has(s.toLowerCase()));
         match = Math.round(35 + 65 * (hit.length / required.length));
       }
-      // Skills used to identify requirements in Adzuna job descriptions
-const JOB_SKILLS = [
-  'Python', 'Java', 'JavaScript', 'TypeScript',
-  'C++', 'PHP', 'SQL', 'MySQL', 'PostgreSQL',
-  'MongoDB', 'HTML', 'CSS', 'React', 'Node.js',
-  'Express', 'Django', 'Flask', 'Git', 'DSA',
-  'OOP', 'REST APIs', 'Linux', 'Docker', 'AWS',
-  'Machine Learning', 'Pandas', 'NumPy', 'Excel',
-  'Android'
-];
-
-function extractJobSkills(description) {
-  const text = String(description || '').toLowerCase();
-
-  return JOB_SKILLS.filter(skill => {
-    const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(^|[^a-z0-9+#])${escaped.toLowerCase()}($|[^a-z0-9+#])`, 'i');
-    return regex.test(text);
-  });
-}
-
-function calculateJobMatch(requiredSkills, resumeSkills) {
-  if (!resumeSkills || resumeSkills.length === 0) {
-    return {
-      match: 0,
-      missing: requiredSkills
-    };
-  }
-
-  if (requiredSkills.length === 0) {
-    return {
-      match: 0,
-      missing: []
-    };
-  }
-
-  const have = new Set(resumeSkills.map(s => s.toLowerCase()));
-
-  const matched = requiredSkills.filter(skill =>
-    have.has(skill.toLowerCase())
-  );
-
-  const missing = requiredSkills.filter(skill =>
-    !have.has(skill.toLowerCase())
-  );
-
-  return {
-    match: Math.round((matched.length / requiredSkills.length) * 100),
-    missing
-  };
-}
+     
       return {
         id: j.id,
         title: j.title,
@@ -592,6 +550,41 @@ app.get('/api/resume', auth, wrap(async (req, res) => {
     suggestions: r.suggestions,
   } : null);
 }));
+/* ---------- ADZUNA JOB CATEGORIES ---------- */
+
+app.get('/api/jobs/categories', auth, wrap(async (req, res) => {
+
+  if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
+    return res.status(503).json({
+      error: 'Adzuna API credentials are missing.'
+    });
+  }
+
+  const params = new URLSearchParams({
+    app_id: ADZUNA_APP_ID,
+    app_key: ADZUNA_APP_KEY,
+    'content-type': 'application/json'
+  });
+
+  const response = await fetch(
+    'https://api.adzuna.com/v1/api/jobs/in/categories?' + params
+  );
+
+  if (!response.ok) {
+    return res.status(502).json({
+      error: 'Could not load Adzuna categories.'
+    });
+  }
+
+  const data = await response.json();
+
+  res.json({
+    categories: (data.results || []).map(category => ({
+      label: category.label,
+      tag: category.tag
+    }))
+  });
+}));
 /* ---------- ADZUNA REAL JOB SEARCH ---------- */
 
 app.get('/api/jobs/search', auth, wrap(async (req, res) => {
@@ -603,8 +596,14 @@ app.get('/api/jobs/search', auth, wrap(async (req, res) => {
   }
 
   const what = cleanText(req.query.what, 100);
-  const where = cleanText(req.query.where, 100);
+const where = cleanText(req.query.where, 100);
+const category = cleanText(req.query.category, 80);
 
+if (category && !/^[a-z0-9-]+$/i.test(category)) {
+  return res.status(400).json({
+    error: 'Invalid job category.'
+  });
+}
   const page = Math.max(1, Math.min(Number(req.query.page) || 1, 10));
 
   const params = new URLSearchParams({
@@ -614,9 +613,9 @@ app.get('/api/jobs/search', auth, wrap(async (req, res) => {
     'content-type': 'application/json'
   });
 
-  if (what) params.set('what', what);
-  if (where) params.set('where', where);
-
+ if (what) params.set('what', what);
+if (where) params.set('where', where);
+if (category) params.set('category', category);
   const url = `${ADZUNA_BASE_URL}/${page}?${params.toString()}`;
 
   const response = await fetch(url, {
@@ -882,7 +881,174 @@ app.put('/api/admin/jobs/:id', auth, adminOnly, wrap(async (req, res) => {
   if (!r.rowCount) return res.status(404).json({ error: 'Job not found' });
   res.json({ id, active: req.body.active });
 }));
+/* ---------- AUTOMATIC RESUME JOB RECOMMENDATIONS ---------- */
 
+const RESUME_JOB_QUERY_GROUPS = [
+  { query: 'Software Developer', skills: ['Python', 'Java', 'JavaScript', 'React', 'Node.js', 'Git'] },
+  { query: 'Data Analyst', skills: ['SQL', 'Microsoft Excel', 'Power BI', 'Tableau', 'Data Analysis', 'Pandas'] },
+  { query: 'Accountant', skills: ['Accounting', 'Bookkeeping', 'Tally', 'GST', 'Taxation', 'Auditing'] },
+  { query: 'Sales Executive', skills: ['Sales', 'CRM', 'Lead Generation', 'Negotiation'] },
+  { query: 'Digital Marketing Executive', skills: ['Digital Marketing', 'SEO', 'Social Media Marketing', 'Content Marketing'] },
+  { query: 'Human Resources Executive', skills: ['Human Resources', 'Recruitment', 'Talent Acquisition'] },
+  { query: 'Administrative Assistant', skills: ['Administration', 'Data Entry', 'MS Office', 'Documentation'] },
+  { query: 'Teacher', skills: ['Teaching', 'Lesson Planning', 'Classroom Management', 'Tutoring'] },
+  { query: 'Nurse', skills: ['Nursing', 'Patient Care', 'First Aid', 'CPR'] },
+  { query: 'Pharmacist', skills: ['Pharmacy', 'Pharmacology'] },
+  { query: 'Hotel Operations', skills: ['Hospitality', 'Hotel Management', 'Front Office', 'Housekeeping'] },
+  { query: 'Civil Engineer', skills: ['Civil Engineering', 'AutoCAD', 'Revit'] },
+  { query: 'Mechanical Engineer', skills: ['Mechanical Engineering', 'SolidWorks', 'MATLAB'] },
+  { query: 'Graphic Designer', skills: ['Graphic Design', 'Figma', 'UI/UX Design'] },
+  { query: 'Logistics Coordinator', skills: ['Supply Chain', 'Logistics', 'Procurement', 'Inventory Management'] }
+];
+
+function getResumeJobQueries(resumeSkills) {
+  const skillSet = new Set(
+    resumeSkills.map(skill => skill.toLowerCase())
+  );
+
+  return [...new Set(
+    RESUME_JOB_QUERY_GROUPS
+      .filter(group =>
+        group.skills.some(skill => skillSet.has(skill.toLowerCase()))
+      )
+      .map(group => group.query)
+  )].slice(0, 4);
+}
+
+app.get('/api/jobs/recommendations', auth, wrap(async (req, res) => {
+
+  if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
+    return res.status(503).json({
+      error: 'Adzuna credentials are missing.'
+    });
+  }
+
+  const resume = await latestResume(req.user.id);
+
+  if (!resume) {
+    return res.status(400).json({
+      error: 'Please upload your resume first.'
+    });
+  }
+
+  const resumeSkills = Array.isArray(resume.skills)
+    ? resume.skills
+    : [];
+
+  if (!resumeSkills.length) {
+    return res.status(400).json({
+      error: 'No skills found in your resume.'
+    });
+  }
+
+  const queries = getResumeJobQueries(resumeSkills);
+
+  if (!queries.length) {
+    return res.status(400).json({
+      error: 'No matching job categories found for your resume skills.'
+    });
+  }
+
+  const where = String(req.query.where || '').trim().slice(0, 100);
+
+  const results = await Promise.allSettled(
+    queries.map(async what => {
+
+      const params = new URLSearchParams({
+        app_id: ADZUNA_APP_ID,
+        app_key: ADZUNA_APP_KEY,
+        results_per_page: '10',
+        what,
+        'content-type': 'application/json'
+      });
+
+      if (where) params.set('where', where);
+
+      const response = await fetch(
+        `${ADZUNA_BASE_URL}/1?${params.toString()}`,
+        { signal: AbortSignal.timeout(15000) }
+      );
+
+      if (!response.ok) {
+        throw new Error('Adzuna HTTP ' + response.status);
+      }
+
+      const data = await response.json();
+
+      return data.results || [];
+    })
+  );
+
+  const successful = results.filter(r => r.status === 'fulfilled');
+
+  if (!successful.length) {
+    return res.status(502).json({
+      error: 'Could not retrieve job recommendations.'
+    });
+  }
+
+  const savedResult = await q(
+    'SELECT adzuna_job_id FROM saved_external_jobs WHERE user_id = $1',
+    [req.user.id]
+  );
+
+  const savedIds = new Set(
+    savedResult.rows.map(r => String(r.adzuna_job_id))
+  );
+
+  const uniqueJobs = new Map();
+
+  successful.forEach(result => {
+    result.value.forEach(job => {
+      if (job.id != null) {
+        uniqueJobs.set(String(job.id), job);
+      }
+    });
+  });
+
+  const jobs = [...uniqueJobs.values()].map(job => {
+
+    const skills = extractJobSkills(
+      `${job.title || ''} ${job.description || ''}`
+    );
+
+    const match = calculateJobMatch(skills, resumeSkills);
+
+    return {
+      id: String(job.id),
+      source: 'adzuna',
+      title: job.title || 'Untitled job',
+      company: job.company?.display_name || 'Company not specified',
+      location: job.location?.display_name || 'Location not specified',
+      description: job.description || '',
+      skills,
+      matchedSkills: match.matchedSkills,
+      missing: match.missing,
+      match: match.match,
+      salaryMin: job.salary_min ?? null,
+      salaryMax: job.salary_max ?? null,
+      redirectUrl: job.redirect_url || '',
+      saved: savedIds.has(String(job.id))
+    };
+  });
+
+  jobs.sort((a, b) =>
+    (b.match ?? -1) - (a.match ?? -1)
+  );
+
+  res.json({
+    personalised: true,
+    resumeSkills,
+    searchedRoleFamilies: queries,
+    total: jobs.length,
+    jobs: jobs.slice(0, 30),
+    attribution: {
+      name: 'Adzuna',
+      url: 'https://www.adzuna.in/'
+    }
+  });
+
+}));
 /* ---------- static frontend ---------- */
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
